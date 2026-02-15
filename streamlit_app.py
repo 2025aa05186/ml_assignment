@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import numpy as np
 
 from sklearn.metrics import (
     accuracy_score,
@@ -16,16 +17,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-# ----------------------------
-# Page
-# ----------------------------
+# ======================================================
+# PAGE
+# ======================================================
 st.set_page_config(page_title="ML Classification App", layout="wide")
 st.title("Machine Learning Classification & Evaluation")
 
 
-# ----------------------------
-# Load models
-# ----------------------------
+# ======================================================
+# LOAD FILES
+# ======================================================
 @st.cache_resource
 def load_files():
     models = {
@@ -49,9 +50,9 @@ def load_files():
 models, scaler, imputer, encoders, target_encoder, feature_columns = load_files()
 
 
-# ----------------------------
-# Sidebar
-# ----------------------------
+# ======================================================
+# SIDEBAR
+# ======================================================
 st.sidebar.header("Controls")
 
 model_name = st.sidebar.selectbox("Select Model", list(models.keys()))
@@ -60,24 +61,47 @@ model = models[model_name]
 uploaded_file = st.sidebar.file_uploader("Upload Test CSV", type=["csv"])
 
 
-# ----------------------------
-# Prediction
-# ----------------------------
+# ======================================================
+# PREDICTION
+# ======================================================
 if uploaded_file is not None:
+
     data = pd.read_csv(uploaded_file)
 
     st.subheader("Uploaded Data")
     st.write(data.head())
 
+    # assume last column is target
     X = data.iloc[:, :-1].copy()
     y = data.iloc[:, -1].copy()
 
-    # match column order
+    # -----------------------------------------
+    # DEFENSIVE PREPROCESSING
+    # -----------------------------------------
+
+    # remove spaces
+    X.columns = X.columns.str.strip()
+
+    # add missing columns if any
+    for col in feature_columns:
+        if col not in X.columns:
+            X[col] = np.nan
+
+    # keep only required
     X = X[feature_columns]
 
     # encode categorical
-    for col in encoders:
-        X[col] = encoders[col].transform(X[col].astype(str))
+    for col, encoder in encoders.items():
+        try:
+            X[col] = encoder.transform(X[col].astype(str))
+        except:
+            X[col] = np.nan
+
+    # convert numeric
+    X = X.apply(pd.to_numeric, errors="coerce")
+
+    # ⭐ CRITICAL FOR CLOUD
+    X = X.values
 
     # impute
     X = imputer.transform(X)
@@ -88,12 +112,14 @@ if uploaded_file is not None:
     # encode target
     y = target_encoder.transform(y)
 
-    # predict
+    # -----------------------------------------
+    # PREDICT
+    # -----------------------------------------
     y_pred = model.predict(X)
 
-    # ----------------------------
-    # Metrics
-    # ----------------------------
+    # ======================================================
+    # METRICS
+    # ======================================================
     acc = accuracy_score(y, y_pred)
     prec = precision_score(y, y_pred, average="weighted", zero_division=0)
     rec = recall_score(y, y_pred, average="weighted", zero_division=0)
@@ -119,9 +145,9 @@ if uploaded_file is not None:
     c3.metric("MCC", f"{mcc:.4f}")
     c3.metric("AUC", auc if isinstance(auc, str) else f"{auc:.4f}")
 
-    # ----------------------------
-    # Confusion Matrix
-    # ----------------------------
+    # ======================================================
+    # CONFUSION MATRIX
+    # ======================================================
     st.subheader("Confusion Matrix")
 
     cm = confusion_matrix(y, y_pred)
@@ -137,8 +163,8 @@ else:
     st.info("Upload a CSV file from sidebar.")
 
 
-# ----------------------------
-# Footer
-# ----------------------------
+# ======================================================
+# FOOTER
+# ======================================================
 st.write("---")
 st.write("Developed for ML Assignment")
