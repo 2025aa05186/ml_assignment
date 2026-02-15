@@ -13,25 +13,25 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
 
-# ----------------------------
-# Load dataset (MANUAL)
-# ----------------------------
+# =========================================================
+# 1. LOAD DATASET (MANUAL)
+# =========================================================
 df = pd.read_csv("data/train.csv")
-print("Dataset loaded!")
+print("Dataset loaded")
 
 
-# ----------------------------
-# Split X and y
-# ----------------------------
+# =========================================================
+# 2. SPLIT FEATURES & TARGET
+# =========================================================
 X = df.iloc[:, :-1].copy()
 y = df.iloc[:, -1].copy()
 
 feature_columns = list(X.columns)
 
 
-# ----------------------------
-# Encode categorical columns
-# ----------------------------
+# =========================================================
+# 3. ENCODE CATEGORICAL FEATURES
+# =========================================================
 encoders = {}
 
 for col in X.columns:
@@ -40,39 +40,53 @@ for col in X.columns:
         X[col] = le.fit_transform(X[col].astype(str))
         encoders[col] = le
 
+print("✅ Encoding done")
 
-# ----------------------------
-# Handle missing values
-# ----------------------------
+
+# =========================================================
+# 4. CONVERT TO NUMERIC (extra safety)
+# =========================================================
+X = X.apply(pd.to_numeric, errors="coerce")
+
+
+# =========================================================
+# 5. HANDLE MISSING VALUES
+# =========================================================
 imputer = SimpleImputer(strategy="mean")
 X = imputer.fit_transform(X)
 
+print("✅ Imputation done")
 
-# ----------------------------
-# Scale
-# ----------------------------
+
+# =========================================================
+# 6. SCALING
+# =========================================================
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
 
+print("✅ Scaling done")
 
-# ----------------------------
-# Encode target (important for XGBoost)
-# ----------------------------
+
+# =========================================================
+# 7. ENCODE TARGET (IMPORTANT FOR XGBOOST)
+# =========================================================
 target_encoder = LabelEncoder()
 y = target_encoder.fit_transform(y)
 
+print("✅ Target encoding done")
 
-# ----------------------------
-# Train test split
-# ----------------------------
+
+# =========================================================
+# 8. TRAIN TEST SPLIT
+# =========================================================
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
 
-# ----------------------------
-# Initialize models
-# ----------------------------
+# =========================================================
+# 9. INITIALIZE MODELS
+# =========================================================
 lr = LogisticRegression(max_iter=1000)
 dt = DecisionTreeClassifier()
 knn = KNeighborsClassifier()
@@ -81,10 +95,10 @@ rf = RandomForestClassifier()
 xgb = XGBClassifier(eval_metric="logloss")
 
 
-# ----------------------------
-# Train
-# ----------------------------
-print("Training...")
+# =========================================================
+# 10. TRAIN MODELS
+# =========================================================
+print("🚀 Training started")
 
 lr.fit(X_train, y_train)
 dt.fit(X_train, y_train)
@@ -93,12 +107,12 @@ nb.fit(X_train, y_train)
 rf.fit(X_train, y_train)
 xgb.fit(X_train, y_train)
 
-print("Training completed!")
+print("✅ Training completed")
 
 
-# ----------------------------
-# Save separately (Method 1)
-# ----------------------------
+# =========================================================
+# 11. SAVE EVERYTHING (METHOD 1)
+# =========================================================
 joblib.dump(lr, "logistic_regression.pkl")
 joblib.dump(dt, "decision_tree.pkl")
 joblib.dump(knn, "knn.pkl")
@@ -112,5 +126,4 @@ joblib.dump(encoders, "encoders.pkl")
 joblib.dump(target_encoder, "target_encoder.pkl")
 joblib.dump(feature_columns, "feature_columns.pkl")
 
-
-print("All models saved!")
+print("All model files saved successfully!")
